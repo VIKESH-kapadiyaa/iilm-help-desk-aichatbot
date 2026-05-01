@@ -5,12 +5,15 @@ import {
   Edit3, Check, Trash2, LogOut, Sun, Moon, ShieldCheck 
 } from 'lucide-react';
 import { AGENTS } from '../constants/agents';
+import { supabase } from '../lib/supabase';
 
 const ProfilePanel = ({ 
   isOpen, 
   onClose, 
   apiKey, 
   provider, 
+  provider, 
+  user,
   onChangeKey, 
   onRevokeKey, 
   isDarkMode, 
@@ -46,15 +49,28 @@ const ProfilePanel = ({
 
   useEffect(() => {
     if (isOpen) {
-      sessionStorage.setItem('iilm_user_profile', JSON.stringify(profile));
+      if (supabase && user) {
+        supabase.from('user_profiles').select('*').eq('id', user.id).single().then(({data}) => {
+          if (data) setProfile({ name: data.full_name, email: data.email, role: data.role, id: data.student_emp_id });
+        });
+        supabase.from('user_preferences').select('*').eq('id', user.id).single().then(({data}) => {
+          if (data) setPrefs({ typingIndicator: data.typing_indicator, saveHistory: data.save_history, language: data.language });
+        });
+      }
     }
-  }, [profile, isOpen]);
+  }, [isOpen, user]);
 
-  useEffect(() => {
-    if (isOpen) {
-      sessionStorage.setItem('iilm_preferences', JSON.stringify(prefs));
+  const handleUpdatePrefs = async (newPrefs) => {
+    setPrefs(newPrefs);
+    if (supabase && user) {
+      await supabase.from('user_preferences').update({
+        typing_indicator: newPrefs.typingIndicator,
+        save_history: newPrefs.saveHistory,
+        language: newPrefs.language
+      }).eq('id', user.id);
     }
-  }, [prefs, isOpen]);
+    sessionStorage.setItem('iilm_preferences', JSON.stringify(newPrefs));
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -90,8 +106,16 @@ const ProfilePanel = ({
     }
   }, [isOpen]);
 
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     setIsEditing(false);
+    if (supabase && user) {
+      await supabase.from('user_profiles').update({
+        full_name: profile.name,
+        email: profile.email,
+        role: profile.role,
+        student_emp_id: profile.id
+      }).eq('id', user.id);
+    }
     sessionStorage.setItem('iilm_user_profile', JSON.stringify(profile));
   };
 
@@ -272,19 +296,19 @@ const ProfilePanel = ({
                   </div>
                   <div className="flex items-center justify-between bg-gray-50 dark:bg-white/5 rounded-xl p-3 border border-gray-100 dark:border-white/5">
                     <div className="text-sm text-gray-700 dark:text-gray-300 font-medium">Typing Indicator</div>
-                    <button onClick={() => setPrefs({...prefs, typingIndicator: !prefs.typingIndicator})} className={`w-12 h-6 rounded-full p-1 transition-colors ${prefs.typingIndicator ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-700'} relative`}>
+                    <button onClick={() => handleUpdatePrefs({...prefs, typingIndicator: !prefs.typingIndicator})} className={`w-12 h-6 rounded-full p-1 transition-colors ${prefs.typingIndicator ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-700'} relative`}>
                       <motion.div layout animate={{ x: prefs.typingIndicator ? 24 : 0 }} className="w-4 h-4 bg-white rounded-full shadow-sm" />
                     </button>
                   </div>
                   <div className="flex items-center justify-between bg-gray-50 dark:bg-white/5 rounded-xl p-3 border border-gray-100 dark:border-white/5">
                     <div className="text-sm text-gray-700 dark:text-gray-300 font-medium">Persist History</div>
-                    <button onClick={() => setPrefs({...prefs, saveHistory: !prefs.saveHistory})} className={`w-12 h-6 rounded-full p-1 transition-colors ${prefs.saveHistory ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-700'} relative`}>
+                    <button onClick={() => handleUpdatePrefs({...prefs, saveHistory: !prefs.saveHistory})} className={`w-12 h-6 rounded-full p-1 transition-colors ${prefs.saveHistory ? 'bg-blue-600' : 'bg-gray-300 dark:bg-gray-700'} relative`}>
                       <motion.div layout animate={{ x: prefs.saveHistory ? 24 : 0 }} className="w-4 h-4 bg-white rounded-full shadow-sm" />
                     </button>
                   </div>
                   <div className="flex items-center justify-between bg-gray-50 dark:bg-white/5 rounded-xl p-3 border border-gray-100 dark:border-white/5">
                     <div className="text-sm text-gray-700 dark:text-gray-300 font-medium">Interface Language</div>
-                    <select value={prefs.language} onChange={e => setPrefs({...prefs, language: e.target.value})} className="bg-transparent border border-gray-200 dark:border-white/10 rounded-lg px-2 py-1 text-sm text-gray-900 dark:text-white outline-none cursor-pointer">
+                    <select value={prefs.language} onChange={e => handleUpdatePrefs({...prefs, language: e.target.value})} className="bg-transparent border border-gray-200 dark:border-white/10 rounded-lg px-2 py-1 text-sm text-gray-900 dark:text-white outline-none cursor-pointer">
                       <option value="en" className="dark:bg-[#111]">English</option>
                       <option value="hi" className="dark:bg-[#111]">Hindi</option>
                     </select>

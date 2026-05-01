@@ -426,6 +426,7 @@ const App = () => {
         onClose={() => setShowProfilePanel(false)} 
         apiKey={apiKey} 
         provider={provider} 
+        user={user}
         onChangeKey={() => { setShowProfilePanel(false); setShowApiModal(true); }}
         onRevokeKey={() => { 
           sessionStorage.removeItem('iilm_api_key'); 
