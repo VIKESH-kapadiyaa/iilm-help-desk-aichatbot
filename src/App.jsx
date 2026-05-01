@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Search, LogOut, Headphones, Wallet, Briefcase, GraduationCap,
   ArrowRight, ShieldCheck, Zap, ChevronRight, Activity,
-  Database, Sun, Moon, LayoutGrid, Server, Globe, Eye, EyeOff, MessageSquare
+  Database, Sun, Moon, LayoutGrid, Server, Globe, Eye, EyeOff, MessageSquare,
+  Github, Chrome
 } from 'lucide-react';
 import { motion, AnimatePresence, useMotionTemplate, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { clsx } from 'clsx';
@@ -202,6 +203,26 @@ const App = () => {
     }
   };
 
+  const handleOAuthLogin = async (providerName) => {
+    if (!supabase) {
+      playError();
+      setError('System Error: Supabase Gateway Disconnected.');
+      return;
+    }
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: providerName,
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+      if (error) throw error;
+    } catch (err) {
+      playError();
+      setError(err.message || `${providerName} Authentication Failed`);
+    }
+  };
+
   const handleAgentClick = (agent) => {
     if (apiKey) setActiveAgent(agent);
     else { setPendingAgent(agent); setShowApiModal(true); }
@@ -276,7 +297,14 @@ const App = () => {
               </form>
               <div className="mt-8 pt-8 border-t border-gray-200 dark:border-white/10 flex items-center justify-between opacity-60 hover:opacity-100 transition-opacity">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">External Gateways</span>
-                <div className="flex gap-4"><ShieldCheck className="w-4 h-4 text-gray-500 hover:text-blue-500 cursor-pointer transition-colors" /><Globe className="w-4 h-4 text-gray-500 hover:text-blue-500 cursor-pointer transition-colors" /></div>
+                <div className="flex gap-4">
+                  <button type="button" onClick={(e) => { e.stopPropagation(); playClick(); handleOAuthLogin('google'); }} className="flex items-center justify-center p-2 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 hover:bg-gray-200 dark:hover:bg-white/10 hover:text-blue-500 transition-all cursor-pointer">
+                    <Chrome className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+                  </button>
+                  <button type="button" onClick={(e) => { e.stopPropagation(); playClick(); handleOAuthLogin('github'); }} className="flex items-center justify-center p-2 rounded-lg bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 hover:bg-gray-200 dark:hover:bg-white/10 hover:text-blue-500 transition-all cursor-pointer">
+                    <Github className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>
