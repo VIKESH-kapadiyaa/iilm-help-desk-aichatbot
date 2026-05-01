@@ -12,7 +12,6 @@ const ProfilePanel = ({
   onClose, 
   apiKey, 
   provider, 
-  provider, 
   user,
   onChangeKey, 
   onRevokeKey, 
