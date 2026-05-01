@@ -298,7 +298,7 @@ const App = () => {
               <div className="mt-8 pt-8 border-t border-gray-200 dark:border-white/10 flex flex-col gap-4 opacity-80 hover:opacity-100 transition-opacity">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 text-center">Or connect with</span>
                 <button type="button" onClick={(e) => { e.stopPropagation(); playClick(); handleOAuthLogin('google'); }} className="flex items-center justify-center gap-2 w-full p-3.5 rounded-xl bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 hover:bg-gray-200 dark:hover:bg-white/10 transition-all cursor-pointer text-sm font-bold text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 group shadow-sm hover:shadow-md">
-                  <Chrome className="w-5 h-5 group-hover:scale-110 transition-transform" /> Google Workspace
+                  <Chrome className="w-5 h-5 group-hover:scale-110 transition-transform" /> Continue with Google
                 </button>
               </div>
             </motion.div>
