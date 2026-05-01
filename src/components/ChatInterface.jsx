@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { ArrowLeft, Send, Activity, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { supabase } from '../lib/supabase';
 
 const PROVIDER_CFG = {
   groq:   { url:'https://api.groq.com/openai/v1/chat/completions',    model:'llama-3.3-70b-versatile',  type:'compat' },
@@ -64,16 +65,45 @@ async function callAI(agent, messages, apiKey, provider) {
   return (await r.json()).candidates?.[0]?.content?.parts?.[0]?.text || 'No response.';
 }
 
-export default function ChatInterface({ agent, apiKey, provider, onClose }) {
+export default function ChatInterface({ agent, apiKey, provider, onClose, user }) {
   const storageKey = `history_${agent.id}`;
-  const [messages, setMessages] = useState(() => JSON.parse(sessionStorage.getItem(storageKey)||'[]'));
+  const [messages, setMessages] = useState([]);
   const [input, setInput]   = useState('');
   const [typing, setTyping] = useState(false);
   const [error,  setError]  = useState('');
   const bottomRef = useRef(null);
   const inputRef  = useRef(null);
 
-  const save = useCallback((msgs) => sessionStorage.setItem(storageKey, JSON.stringify(msgs)), [storageKey]);
+  useEffect(() => {
+    const loadMessages = async () => {
+      if (supabase && user) {
+        const { data } = await supabase
+          .from('chat_sessions')
+          .select('messages')
+          .eq('user_id', user.id)
+          .eq('agent_id', agent.id)
+          .single();
+        if (data && data.messages) {
+          setMessages(data.messages);
+        } else {
+          setMessages([]);
+        }
+      } else {
+        setMessages(JSON.parse(sessionStorage.getItem(storageKey)||'[]'));
+      }
+    };
+    loadMessages();
+  }, [agent.id, user]);
+
+  const save = useCallback(async (msgs) => {
+    if (supabase && user) {
+      await supabase
+        .from('chat_sessions')
+        .upsert({ user_id: user.id, agent_id: agent.id, messages: msgs }, { onConflict: 'user_id,agent_id' });
+    } else {
+      sessionStorage.setItem(storageKey, JSON.stringify(msgs));
+    }
+  }, [storageKey, agent.id, user]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({behavior:'smooth'}); }, [messages, typing]);
   useEffect(() => { setTimeout(()=>inputRef.current?.focus(), 80); }, []);
@@ -83,12 +113,15 @@ export default function ChatInterface({ agent, apiKey, provider, onClose }) {
     if (!text || typing) return;
     const userMsg = { role:'user', content:text, ts:Date.now() };
     const next = [...messages, userMsg];
-    setMessages(next); save(next); setInput(''); setTyping(true); setError('');
+    setMessages(next); 
+    save(next); 
+    setInput(''); setTyping(true); setError('');
     try {
       const reply = await callAI(agent, next, apiKey, provider);
       const aMsg = { role:'assistant', content:reply, ts:Date.now() };
       const final = [...next, aMsg];
-      setMessages(final); save(final);
+      setMessages(final); 
+      save(final);
     } catch(e) {
       setError(e.message?.includes('401')||e.message?.includes('403') ? 'Invalid API Key. Please check and retry.' : `Error: ${e.message}`);
     }

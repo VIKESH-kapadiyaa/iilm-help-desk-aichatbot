@@ -11,6 +11,7 @@ import ApiKeyModal from './components/ApiKeyModal';
 import ChatInterface from './components/ChatInterface';
 import ProfilePanel from './components/ProfilePanel';
 import { AGENTS } from './constants/agents';
+import { supabase } from './lib/supabase';
 
 // --- Utility for cleaner tailwind classes ---
 function cn(...inputs) { return twMerge(clsx(inputs)); }
@@ -118,12 +119,36 @@ const App = () => {
   const [showApiModal, setShowApiModal] = useState(false);
   const [showProfilePanel, setShowProfilePanel] = useState(false);
   const [pendingAgent, setPendingAgent] = useState(null);
+  const [user, setUser] = useState(null);
   const [apiKey, setApiKey] = useState(() => sessionStorage.getItem('iilm_api_key'));
   const [provider, setProvider] = useState(() => sessionStorage.getItem('iilm_provider'));
 
   useEffect(() => {
     const handleGlobalClick = () => playClick();
     window.addEventListener('click', handleGlobalClick);
+    
+    if (supabase) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          setUser(session.user);
+          setIsLoggedIn(true);
+        }
+      });
+      const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+        if (session) {
+          setUser(session.user);
+          setIsLoggedIn(true);
+        } else {
+          setUser(null);
+          setIsLoggedIn(false);
+        }
+      });
+      return () => {
+        window.removeEventListener('click', handleGlobalClick);
+        authListener?.subscription.unsubscribe();
+      };
+    }
+
     return () => window.removeEventListener('click', handleGlobalClick);
   }, [playClick]);
 
@@ -144,12 +169,37 @@ const App = () => {
     }
   }, [isLoggedIn]);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     if (!email.endsWith('@iilm.edu')) { playError(); setError('Access Denied: Institutional Identity Required (@iilm.edu)'); return; }
     if (password.length < 8 || !/\d/.test(password) || !/[a-zA-Z]/.test(password)) { playError(); setError('Security Alert: Weak Credentials Detected (Min 8 chars, Alphanumeric)'); return; }
+    
     setError(''); setIsLoggingIn(true);
-    setTimeout(() => { playSuccess(); setIsLoggedIn(true); setIsLoggingIn(false); }, 1500);
+
+    if (supabase) {
+      try {
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) {
+          if (signInError.message.includes('Invalid login credentials')) {
+            const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password });
+            if (signUpError) throw signUpError;
+            // Signed up successfully (might need email confirmation depending on Supabase settings)
+          } else {
+            throw signInError;
+          }
+        }
+        playSuccess();
+        // State updated via onAuthStateChange
+      } catch (err) {
+        playError();
+        setError(err.message || 'Authentication Failed');
+      } finally {
+        setIsLoggingIn(false);
+      }
+    } else {
+      // Fallback for demo without Supabase configured
+      setTimeout(() => { playSuccess(); setIsLoggedIn(true); setIsLoggingIn(false); }, 1500);
+    }
   };
 
   const handleAgentClick = (agent) => {
@@ -266,7 +316,12 @@ const App = () => {
               <span className="text-sm font-bold text-gray-900 dark:text-white">IU</span>
             </div>
           </div>
-          <button onClick={(e) => { e.stopPropagation(); playClick(); setIsLoggedIn(false); }} className="p-2 text-gray-400 hover:text-red-500 transition-colors"><LogOut className="w-5 h-5" /></button>
+          <button onClick={async (e) => { 
+            e.stopPropagation(); 
+            playClick(); 
+            if (supabase) await supabase.auth.signOut();
+            setIsLoggedIn(false); 
+          }} className="p-2 text-gray-400 hover:text-red-500 transition-colors"><LogOut className="w-5 h-5" /></button>
         </div>
       </nav>
 
@@ -364,7 +419,7 @@ const App = () => {
         )}
       </main>
 
-      {activeAgent && <ChatInterface agent={activeAgent} apiKey={apiKey} provider={provider} onClose={() => setActiveAgent(null)} />}
+      {activeAgent && <ChatInterface agent={activeAgent} apiKey={apiKey} provider={provider} onClose={() => setActiveAgent(null)} user={user} />}
       <ApiKeyModal isOpen={showApiModal} onClose={() => setShowApiModal(false)} onActivated={(k, p) => { sessionStorage.setItem('iilm_api_key', k); sessionStorage.setItem('iilm_provider', p); setApiKey(k); setProvider(p); setShowApiModal(false); if (pendingAgent) setActiveAgent(pendingAgent); setPendingAgent(null); }} />
       <ProfilePanel 
         isOpen={showProfilePanel} 
