@@ -9,6 +9,7 @@ import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import ApiKeyModal from './components/ApiKeyModal';
 import ChatInterface from './components/ChatInterface';
+import ProfilePanel from './components/ProfilePanel';
 import { AGENTS } from './constants/agents';
 
 // --- Utility for cleaner tailwind classes ---
@@ -115,6 +116,7 @@ const App = () => {
   const [activeTab, setActiveTab] = useState('directory');
   const [activeAgent, setActiveAgent] = useState(null);
   const [showApiModal, setShowApiModal] = useState(false);
+  const [showProfilePanel, setShowProfilePanel] = useState(false);
   const [pendingAgent, setPendingAgent] = useState(null);
   const [apiKey, setApiKey] = useState(() => sessionStorage.getItem('iilm_api_key'));
   const [provider, setProvider] = useState(() => sessionStorage.getItem('iilm_provider'));
@@ -259,8 +261,10 @@ const App = () => {
               <span className="text-[9px] text-emerald-600 font-mono">NODE_LHR_002_ACTIVE</span>
             </div>
           )}
-          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 p-[2px] cursor-pointer hover:scale-105 transition-transform">
-            <div className="w-full h-full rounded-full bg-white dark:bg-black p-0.5"><img src="https://api.dicebear.com/7.x/notionists/svg?seed=user" alt="User" className="w-full h-full rounded-full bg-gray-100" /></div>
+          <div onClick={() => setShowProfilePanel(true)} className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-500 to-purple-500 p-[2px] cursor-pointer hover:scale-105 transition-transform">
+            <div className="w-full h-full rounded-full bg-white dark:bg-[#111] flex items-center justify-center overflow-hidden">
+              <span className="text-sm font-bold text-gray-900 dark:text-white">IU</span>
+            </div>
           </div>
           <button onClick={(e) => { e.stopPropagation(); playClick(); setIsLoggedIn(false); }} className="p-2 text-gray-400 hover:text-red-500 transition-colors"><LogOut className="w-5 h-5" /></button>
         </div>
@@ -362,6 +366,26 @@ const App = () => {
 
       {activeAgent && <ChatInterface agent={activeAgent} apiKey={apiKey} provider={provider} onClose={() => setActiveAgent(null)} />}
       <ApiKeyModal isOpen={showApiModal} onClose={() => setShowApiModal(false)} onActivated={(k, p) => { sessionStorage.setItem('iilm_api_key', k); sessionStorage.setItem('iilm_provider', p); setApiKey(k); setProvider(p); setShowApiModal(false); if (pendingAgent) setActiveAgent(pendingAgent); setPendingAgent(null); }} />
+      <ProfilePanel 
+        isOpen={showProfilePanel} 
+        onClose={() => setShowProfilePanel(false)} 
+        apiKey={apiKey} 
+        provider={provider} 
+        onChangeKey={() => { setShowProfilePanel(false); setShowApiModal(true); }}
+        onRevokeKey={() => { 
+          sessionStorage.removeItem('iilm_api_key'); 
+          sessionStorage.removeItem('iilm_provider'); 
+          setApiKey(null); 
+          setProvider(null); 
+          setActiveAgent(null); 
+        }}
+        isDarkMode={isDarkMode}
+        toggleDarkMode={() => { playClick(); setIsDarkMode(!isDarkMode); }}
+        onResetSession={() => {
+          sessionStorage.clear();
+          window.location.reload();
+        }}
+      />
 
       <footer className="mt-20 py-12 border-t border-gray-200 dark:border-white/5 dark:bg-[#080808] bg-gray-50 transition-colors duration-500">
         <div className="max-w-[1600px] mx-auto px-12 flex flex-col md:flex-row justify-between items-center gap-6 opacity-50 hover:opacity-100 transition-opacity">
